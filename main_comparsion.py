@@ -13,6 +13,7 @@ from ffpyplayer.player import MediaPlayer
 
 from embedder import FullBodyPoseEmbedder
 
+
 def cos_similarity(v1, v2):
     num = float(np.dot(v1, v2))
     denom = np.linalg.norm(v1) * np.linalg.norm(v2)
@@ -21,8 +22,10 @@ def cos_similarity(v1, v2):
 
 def get_index_to_line(landmarks):
     index2vector = {}
-    index2vector[0] = ((landmarks[2] + landmarks[5]) * 0.5, (landmarks[9] + landmarks[10]) * 0.5)  # 眼中到嘴中
-    index2vector[1] = ((landmarks[23] + landmarks[24]) * 0.5, (landmarks[11] + landmarks[12]) * 0.5)  # 臀中到肩中
+    index2vector[0] = ((landmarks[2] + landmarks[5]) * 0.5,
+                       (landmarks[9] + landmarks[10]) * 0.5)  # 眼中到嘴中
+    index2vector[1] = ((landmarks[23] + landmarks[24]) * 0.5,
+                       (landmarks[11] + landmarks[12]) * 0.5)  # 臀中到肩中
     index2vector[2] = (landmarks[11], landmarks[13])  # 左肩到左肘
     index2vector[3] = (landmarks[12], landmarks[14])  # 右肩到右肘
     index2vector[4] = (landmarks[13], landmarks[15])  # 左肘到左腕
@@ -39,7 +42,7 @@ def get_index_to_line(landmarks):
 
     index2vector[14] = (landmarks[23], landmarks[15])  # 左臀到左腕
     index2vector[15] = (landmarks[24], landmarks[16])  # 右臀到右腕
-    
+
     index2vector[16] = (landmarks[11], landmarks[27])  # 左肩到左脚踝
     index2vector[17] = (landmarks[12], landmarks[28])  # 右肩到右脚踝
     index2vector[18] = (landmarks[23], landmarks[15])  # 左臀到左腕
@@ -51,6 +54,11 @@ def get_index_to_line(landmarks):
     index2vector[23] = (landmarks[27], landmarks[28])  # 左脚踝到右脚踝
 
     return index2vector
+
+
+REMIND_MAPPING = dict(enumerate(
+    ["Watch your neck!", "Watch your body!", "Watch your left arm!", "Watch your right arm!", "Watch your left forearm!", 
+    "Watch your right forearm!", "Watch your left thigh!", "Watch your right thigh!", "Watch your left crus!", "Watch your right crus!"]))
 
 # Specify your video name and target pose class to count the repetitions.
 video_path = 0
@@ -76,13 +84,15 @@ pose_tracker = mp_pose.Pose()
 # Initialize embedder.
 pose_embedder = FullBodyPoseEmbedder()
 
-# Get ready embedding 
+# Get ready embedding
 result = pose_tracker.process(image=ready_image)
 ready_pose_landmarks = result.pose_landmarks
-assert(ready_pose_landmarks is not None, "Please give the correct ready image!")
+assert(ready_pose_landmarks is not None,
+       "Please give the correct ready image!")
 player = None
 
-ready_pose_landmarks = np.array([[lmk.x * 640, lmk.y * 480, lmk.z * 640] for lmk in ready_pose_landmarks.landmark], dtype=np.float32)
+ready_pose_landmarks = np.array([[lmk.x * 640, lmk.y * 480, lmk.z * 640]
+                                for lmk in ready_pose_landmarks.landmark], dtype=np.float32)
 ready_embedding = pose_embedder(ready_pose_landmarks)
 
 is_start = False
@@ -110,8 +120,10 @@ while len(refer_pose_datas) > 0:
         if pose_landmarks is not None:
             # Get landmarks.
             frame_height, frame_width = output_frame.shape[0], output_frame.shape[1]
-            pose_landmarks = np.array([[lmk.x * frame_width, lmk.y * frame_height, lmk.z * frame_width] for lmk in pose_landmarks.landmark], dtype=np.float32)
-            assert pose_landmarks.shape == (33, 3), 'Unexpected landmarks shape: {}'.format(pose_landmarks.shape)
+            pose_landmarks = np.array([[lmk.x * frame_width, lmk.y * frame_height, lmk.z * frame_width]
+                                      for lmk in pose_landmarks.landmark], dtype=np.float32)
+            assert pose_landmarks.shape == (
+                33, 3), 'Unexpected landmarks shape: {}'.format(pose_landmarks.shape)
 
         mean_similar = 0.0
         if pose_landmarks is not None:
@@ -125,20 +137,21 @@ while len(refer_pose_datas) > 0:
         # print(mean_similar)
         # print("*" * 100)
         # exit()
-        cv2.imshow('frame', cv2.cvtColor(np.array(output_frame), cv2.COLOR_RGB2BGR))
+        cv2.imshow('frame', cv2.cvtColor(
+            np.array(output_frame), cv2.COLOR_RGB2BGR))
 
-        if cv2.waitKey(1) &0xFF ==ord('q'):  #按q键退出
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # 按q键退出
             exit()
 
         if mean_similar > 0.99:
             is_start = True
             cv2.destroyAllWindows()
             break
-    
+
     # 开始播放音频
     if not player:
         player = MediaPlayer(reference_video_path)
-   
+
     # 2. 循环直到参考视频结束为止，期间输入流取一帧
     refer_success, refer_input_frame = reference_video_cap.read()
     if not refer_success:
@@ -147,7 +160,7 @@ while len(refer_pose_datas) > 0:
 
     audio_frame, val = player.get_frame()
     if val != 'eof' and audio_frame is not None:
-        #audio
+        # audio
         img, t = audio_frame
 
     # Run pose tracker.
@@ -169,7 +182,7 @@ while len(refer_pose_datas) > 0:
     frame_height, frame_width = output_frame.shape[0], output_frame.shape[1]
 
     if pose_landmarks is not None:
-        # Embedding index to vector mapping 
+        # Embedding index to vector mapping
 
         mp_drawing.draw_landmarks(
             image=output_frame,
@@ -184,17 +197,22 @@ while len(refer_pose_datas) > 0:
 
     if pose_landmarks is not None:
         # Get landmarks.
-        pose_landmarks = np.array([[lmk.x * frame_width, lmk.y * frame_height, lmk.z * frame_width] for lmk in pose_landmarks.landmark], dtype=np.float32)
-        assert pose_landmarks.shape == (33, 3), 'Unexpected landmarks shape: {}'.format(pose_landmarks.shape)
+        pose_landmarks = np.array([[lmk.x * frame_width, lmk.y * frame_height, lmk.z * frame_width]
+                                  for lmk in pose_landmarks.landmark], dtype=np.float32)
+        assert pose_landmarks.shape == (
+            33, 3), 'Unexpected landmarks shape: {}'.format(pose_landmarks.shape)
         index2vector = get_index_to_line(pose_landmarks)
 
     if refer_pose_landmarks is not None:
         # Get landmarks.
-        refer_pose_landmarks = np.array([[lmk.x * frame_width, lmk.y * frame_height, lmk.z * frame_width] for lmk in refer_pose_landmarks.landmark], dtype=np.float32)
-        assert refer_pose_landmarks.shape == (33, 3), 'Unexpected landmarks shape: {}'.format(refer_pose_landmarks.shape)
+        refer_pose_landmarks = np.array([[lmk.x * frame_width, lmk.y * frame_height, lmk.z * frame_width]
+                                        for lmk in refer_pose_landmarks.landmark], dtype=np.float32)
+        assert refer_pose_landmarks.shape == (
+            33, 3), 'Unexpected landmarks shape: {}'.format(refer_pose_landmarks.shape)
 
     mean_similar = 0.0
     similars = []
+    remind_part = []
     if pose_landmarks is not None and refer_pose_landmarks is not None:
         pose_embedding = pose_embedder(pose_landmarks)
         refer_pose_embedding = pose_embedder(refer_pose_landmarks)
@@ -203,28 +221,34 @@ while len(refer_pose_datas) > 0:
             similar = cos_similarity(v1[:2], v2[:2])
             similars.append(similar)
             if similar < 0.8 and i < 10:
-                cv2.line(output_frame, index2vector[i][0][:2].astype(np.int32), index2vector[i][1][:2].astype(np.int32), (255, 0, 0), 3)
-                
+                remind_part.append((REMIND_MAPPING[i], similar))
+                cv2.line(output_frame, index2vector[i][0][:2].astype(
+                    np.int32), index2vector[i][1][:2].astype(np.int32), (255, 0, 0), 3)
+
         mean_similar = sum(similars) / (len(similars) + 1e-8)
 
-    refer_output_frame = cv2.resize(refer_output_frame, (frame_width, frame_height))
+    refer_output_frame = cv2.resize(
+        refer_output_frame, (frame_width, frame_height))
 
     output_frame = np.hstack([output_frame, refer_output_frame])
 
     is_standard = False
     if mean_similar > 0.97:
         is_standard = True
-    
-    cv2.putText(output_frame, 'Is standard: {}'.format(str(is_standard)), (300, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 2)
-    
+
+    remind_part = sorted(remind_part, key=lambda x: x[1])
+    cv2.putText(output_frame, 'Is standard: {}'.format(str(is_standard)),
+                (300, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 2)
+
+    if len(remind_part) > 1:
+        cv2.putText(output_frame, 'Reminding: {}'.format(str(remind_part[0][0])),
+                    (200, 90), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 2)
+
     cv2.imshow('frame', output_frame[:, :, ::-1])
-    if cv2.waitKey(1) &0xFF ==ord('q'):
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 
 reference_video_cap.release()
 video_cap.release()
 cv2.destroyAllWindows()
-
-
-

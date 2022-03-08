@@ -9,8 +9,6 @@ import pickle
 from mediapipe.python.solutions import drawing_utils as mp_drawing
 from mediapipe.python.solutions import pose as mp_pose
 
-from embedder import FullBodyPoseEmbedder
-
 
 # Open the video.
 video_path = 'data/FullBody_Patch.mp4'
