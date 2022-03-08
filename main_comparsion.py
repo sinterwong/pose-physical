@@ -6,12 +6,12 @@ import numpy as np
 import os
 import pickle as pk
 import csv
-from ffpyplayer.player import MediaPlayer
+
 from mediapipe.python.solutions import drawing_utils as mp_drawing
 from mediapipe.python.solutions import pose as mp_pose
+from ffpyplayer.player import MediaPlayer
 
 from embedder import FullBodyPoseEmbedder
-
 
 def cos_similarity(v1, v2):
     num = float(np.dot(v1, v2))
@@ -66,12 +66,9 @@ ready_image = cv2.cvtColor(cv2.imread(ready_image_path), cv2.COLOR_BGR2RGB)
 
 # Open the video.
 reference_video_cap = cv2.VideoCapture(reference_video_path)
-# reference_video_cap.set(cv2.CAP_PROP_FPS, 30)
-print("FPS of reference video: ", reference_video_cap.get(cv2.CAP_PROP_FPS))
-player = None
-
+reference_video_cap.set(cv2.CAP_PROP_FPS, 25)
 video_cap = cv2.VideoCapture(0)
-video_cap.set(cv2.CAP_PROP_FPS, reference_video_cap.get(cv2.CAP_PROP_FPS))
+video_cap.set(cv2.CAP_PROP_FPS, 25)
 
 # Initialize tracker.
 pose_tracker = mp_pose.Pose()
@@ -83,12 +80,14 @@ pose_embedder = FullBodyPoseEmbedder()
 result = pose_tracker.process(image=ready_image)
 ready_pose_landmarks = result.pose_landmarks
 assert(ready_pose_landmarks is not None, "Please give the correct ready image!")
+player = None
 
 ready_pose_landmarks = np.array([[lmk.x * 640, lmk.y * 480, lmk.z * 640] for lmk in ready_pose_landmarks.landmark], dtype=np.float32)
 ready_embedding = pose_embedder(ready_pose_landmarks)
 
 is_start = False
 count = 0
+last_pose_landmarks = None
 while len(refer_pose_datas) > 0:
     # 1. 开始先遍历视频，直到与准备动作匹配
     while not is_start:
@@ -135,30 +134,33 @@ while len(refer_pose_datas) > 0:
             is_start = True
             cv2.destroyAllWindows()
             break
-
+    
+    # 开始播放音频
     if not player:
-        player = MediaPlayer(reference_video_path)  # 开始播放音频
-
+        player = MediaPlayer(reference_video_path)
+   
     # 2. 循环直到参考视频结束为止，期间输入流取一帧
     refer_success, refer_input_frame = reference_video_cap.read()
     if not refer_success:
         break
+    success, input_frame = video_cap.read()
 
     audio_frame, val = player.get_frame()
-    success, input_frame = video_cap.read()
+    if val != 'eof' and audio_frame is not None:
+        #audio
+        img, t = audio_frame
 
     # Run pose tracker.
     input_frame = cv2.cvtColor(input_frame, cv2.COLOR_BGR2RGB)[:, ::-1, :]
     refer_input_frame = cv2.cvtColor(refer_input_frame, cv2.COLOR_BGR2RGB)
 
-    # count += 1
-    # if count % 2 == 0:
-    #     result = pose_tracker.process(image=input_frame)
-    #     pose_landmarks = result.pose_landmarks
+    if count % 2 == 0:
+        result = pose_tracker.process(image=input_frame)
+        pose_landmarks = result.pose_landmarks
+        last_pose_landmarks = pose_landmarks
+    else:
+        pose_landmarks = last_pose_landmarks
 
-    result = pose_tracker.process(image=input_frame)
-    pose_landmarks = result.pose_landmarks
-    
     refer_pose_landmarks = refer_pose_datas.pop(0)
 
     # Draw pose prediction.
@@ -168,6 +170,7 @@ while len(refer_pose_datas) > 0:
 
     if pose_landmarks is not None:
         # Embedding index to vector mapping 
+
         mp_drawing.draw_landmarks(
             image=output_frame,
             landmark_list=pose_landmarks,
@@ -196,12 +199,10 @@ while len(refer_pose_datas) > 0:
         pose_embedding = pose_embedder(pose_landmarks)
         refer_pose_embedding = pose_embedder(refer_pose_landmarks)
 
-        for i, (v1, v2) in enumerate(zip(refer_pose_embedding, pose_landmarks)):
+        for i, (v1, v2) in enumerate(zip(refer_pose_embedding, pose_embedding)):
             similar = cos_similarity(v1[:2], v2[:2])
             similars.append(similar)
-            if similar < 0.8:
-                if i >= len(index2vector) - 14:
-                    continue
+            if similar < 0.8 and i < 10:
                 cv2.line(output_frame, index2vector[i][0][:2].astype(np.int32), index2vector[i][1][:2].astype(np.int32), (255, 0, 0), 3)
                 
         mean_similar = sum(similars) / (len(similars) + 1e-8)
@@ -219,10 +220,6 @@ while len(refer_pose_datas) > 0:
     cv2.imshow('frame', output_frame[:, :, ::-1])
     if cv2.waitKey(1) &0xFF ==ord('q'):
         break
-
-    if val != 'eof' and audio_frame is not None:
-        #audio
-        img, t = audio_frame
 
 
 reference_video_cap.release()
