@@ -57,8 +57,11 @@ def get_index_to_line(landmarks):
 
 
 REMIND_MAPPING = dict(enumerate(
-    ["Watch your neck!", "Watch your body!", "Watch your left arm!", "Watch your right arm!", "Watch your left forearm!", 
-    "Watch your right forearm!", "Watch your left thigh!", "Watch your right thigh!", "Watch your left crus!", "Watch your right crus!"]))
+    ["Pay attention to your neck!", "Pay attention to your body!", 
+    "Pay attention to your left arm!", "Pay attention to your right arm!", 
+    "Pay attention to your left forearm!", "Pay attention to your right forearm!", 
+    "Pay attention to your left thigh!", "Pay attention to your right thigh!", 
+    "Pay attention to your left crus!", "Pay attention to your right crus!"]))
 
 # Specify your video name and target pose class to count the repetitions.
 video_path = 0
@@ -242,7 +245,7 @@ while len(refer_pose_datas) > 0:
 
     if len(remind_part) > 1:
         cv2.putText(output_frame, 'Reminding: {}'.format(str(remind_part[0][0])),
-                    (200, 90), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 2)
+                    (150, 90), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 2)
 
     cv2.imshow('frame', output_frame[:, :, ::-1])
     if cv2.waitKey(1) & 0xFF == ord('q'):
